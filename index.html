@@ -596,8 +596,16 @@ document.querySelectorAll('.bank').forEach(b=>buildBank(b));
 function renderPlayers() {
   const list = document.getElementById('playerList');
   list.innerHTML = '';
-  const teamColor = {stamm:'var(--gold)', zweite:'var(--silver)', jugend:'var(--bronze)'};
 
+  // Button nur anzeigen, wenn das aktuelle Team nicht "verliehen" oder "streichliste" ist
+  const btnAdd = document.getElementById('btnAdd');
+  if(currentTeam === 'verliehen' || currentTeam === 'streichliste'){
+    btnAdd.style.display = 'none';
+  } else {
+    btnAdd.style.display = 'block';
+  }
+
+  const teamColor = {stamm:'var(--gold)', zweite:'var(--silver)', jugend:'var(--bronze)'};
   let teamPlayers = players.filter(p => p.team === currentTeam);
   const posOrder = ['TW','LV','LIV','ZIV','RIV','RV','DM','ZM','OM','LM','LA','RM','RA','ST'];
 
