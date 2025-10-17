@@ -1,1 +1,1 @@
-# prcnt89.github.io/fmquadmanager
+# prcnt89.github.io/fmsquadmanager
