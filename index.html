@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Football Manager – Kaderplaner</title>
+<style>
+:root{
+  --gap:8px;
+  --muted:#9aa4b2;
+  --gold:#ffd54a;
+  --silver:#c0c6cc;
+  --bronze:#cd7f32;
+}
+html,body{
+  height:100%;
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui;
+  color:#e6eef6;
+  background:#071022;
+}
+header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+h1{font-size:20px;margin:0}
+button{background:#112233;border:1px solid #1f2b3a;color:#dfefff;padding:8px 12px;border-radius:8px;cursor:pointer}
+input[type=file]{display:none}
+
+.panel{background:rgba(255,255,255,0.03);padding:12px;border-radius:12px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.legend .item{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.player{display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;margin-bottom:6px;border:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.02)}
+.player-top{display:flex;align-items:center;gap:6px}
+.player .name{font-weight:600;cursor:text;flex:1;outline:none}
+.player select{appearance:none;background:#112233;border:1px solid #1f2b3a;border-radius:8px;color:#dfefff;padding:6px 10px;font-size:14px;cursor:pointer}
+.player .btn-delete{font-weight:bold}
+.player .comment{width:100%;font-size:12px;padding:6px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);color:#dfefff}
+
+.tabs {display:flex;gap:8px;margin-bottom:12px}
+.tab-btn {padding:8px 16px;border-radius:8px;border:none;cursor:pointer;background:rgba(255,255,255,0.03);color:#e6eef6;font-weight:600;display:flex;align-items:center;gap:6px}
+.tab-btn.active {background:rgba(255,255,255,0.1)}
+.formation-tab{background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.05)}
+
+.pitch {
+  background: url('graphics/pitch.png') no-repeat center center;
+  background-size: 100% 100%; /* unproportional */
+  padding: 20px;
+  border-radius: 8px;
+  position: relative;
+  min-height: 300px; /* sicherstellen, dass etwas sichtbar ist */
+}
+
+.player-list {
+  overflow: visible;
+  padding-right: 0;
+  max-height: none;
+}
+
+.bank {
+  margin-top: 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+.bank h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+}
+.bank-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.bank-cell {
+  min-height: 65px;
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+}
+.bank-cell.dragover { outline: 3px solid rgba(255,255,255,0.08); }
+
+.row{display:grid;gap:8px;margin-bottom:8px}
+.cell{min-height:70px;border:1px dashed rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;border-radius:8px;position:relative;background:rgba(255,255,255,0.02)}
+.cell.dragover{outline:3px solid rgba(255,255,255,0.08)}
+.cell .slot{display:flex;flex-direction:column;align-items:center;gap:4px}
+.cell .name{font-weight:700}
+.cell .pos{font-size:12px;color:var(--muted)}
+.remove-cell{position:absolute;right:6px;top:6px;background:rgba(0,0,0,0.4);border-radius:6px;padding:4px;cursor:pointer}
+.dragging{opacity:0.5}
+
+.app {
+  max-width: 100%;
+  margin: 18px auto;
+  padding: 12px 36px 18px 18px; /* oben rechts unten links */
+  display: grid;
+  grid-template-columns: 65% 35%;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 18px;
+}
+
+
+/* Header über die gesamte Breite */
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Legende ebenfalls über gesamte Breite */
+.legend {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+/* Tabs über gesamte Breite */
+.tabs {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.player .comment {
+  width: 96%;
+  max-width: 96%;
+  resize: none;
+  overflow: hidden;
+  min-height: 20px;
+  line-height: 1.4;
+}
+
+.info-text {
+  color: #dfefff;
+  font-size: 14px;
+  font-family: Inter, ui-sans-serif, system-ui;
+  margin: 4px 0 12px 0;
+}
+
+.extra-boxes {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.box {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.box h2 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #dfefff;
+}
+
+.box-text {
+  flex: 1;
+  width: calc(100% - 18px);
+  min-height: 100px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: #e6eef6;
+  padding: 8px;
+  font-family: Inter, ui-sans-serif, system-ui;
+  font-size: 14px;
+  resize: vertical;
+}
+
+/* Wishlist-Tabelle */
+#wishlistTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* feste Spaltenbreiten */
+}
+
+#wishlistTable th, #wishlistTable td {
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+/* Spaltenbreiten fixieren */
+#wishlistTable th:nth-child(1), #wishlistTable td:nth-child(1) { width: 200px; } /* Name */
+#wishlistTable th:nth-child(2), #wishlistTable td:nth-child(2) { width: 100px; } /* Position */
+#wishlistTable th:nth-child(3), #wishlistTable td:nth-child(3) { width: 80px; }  /* Wert */
+#wishlistTable th:nth-child(4), #wishlistTable td:nth-child(4) { width: 40px; }  /* Löschen */
+
+/* Input und Select auf volle Breite der Zelle, fixe Größe */
+#wishlistTable input,
+#wishlistTable select {
+  width: 100%;         /* passt genau zur td-Spalte */
+  max-width: 100%;     /* verhindert Vergrößerung */
+  box-sizing: border-box; /* Padding wird eingerechnet */
+}
+
+/* Löschen Button */
+#wishlistTable button {
+  width: auto;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.player .status-select {
+  font-size: 14px;           
+  padding: 6px 10px;         
+  height: auto;              
+  border-radius: 8px;        
+  background: #112233;       
+  border: 1px solid #1f2b3a;
+  color: #dfefff;            
+  cursor: pointer;
+  appearance: none;          
+  width: 45px;
+}
+
+/* --- Spieler-Darstellung auf dem Spielfeld --- */
+.cell .slot,
+.bank-cell .slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 3px;
+}
+
+.cell .slot img,
+.bank-cell .slot img {
+  width: 25px;
+  height: auto;
+}
+
+.cell .slot .name,
+.bank-cell .slot .name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6eef6;
+  line-height: 1.2;
+}
+
+.cell .slot .pos,
+.bank-cell .slot .pos {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.1;
+}
+
+.player-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-top .name {
+  flex: 1;       /* Name füllt verfügbaren Platz */
+  min-width: 80px;
+  cursor: text;
+}
+
+.player-top .comment {
+  width: 120px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+  color: #dfefff;
+  font-size: 12px;
+}
+
+#positionCount {
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 10px;
+  color: #dfefff;
+}
+
+/* --- Spielfeld + Bank sticky fixieren --- */
+.formation-tab {
+  position: sticky;
+  top: 0;                /* ab wann das Element „klebt“ */
+  z-index: 100;          /* über anderen Elementen */
+  background: rgba(7, 16, 34, 0.95);  /* Hintergrund, damit nichts durchscheint */
+  backdrop-filter: blur(6px);
+  padding-bottom: 12px;  /* optisch schöner Abstand */
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 1. Zeile: Header -->
+  <header>
+    <h1>Football Manager – Kaderplaner</h1>
+    <div>
+      <button id="btnLoad">Laden</button>
+      <button id="btnExport">Speichern</button>
+      <input id="importFile" type="file" accept="application/json">
+    </div>
+  </header>
+
+  <!-- 2. Zeile: Statuslegende -->
+  <div class="legend">
+    <div class="item"><span style="color:#90ee90">Lei</span> ausgeliehen</div>
+    <div class="item"><span style="color:#ff7f7f">Lei</span> verliehen</div>
+    <div class="item"><span style="color:#fff176">TL</span> auf Transferliste</div>
+    <div class="item"><span style="color:#ef4444">Str</span> Streichliste</div>
+    <div class="item"><span style="color:#10b981">Trn</span> offenes Transferangebot</div>
+  </div>
+
+  <!-- TODO & WISHLIST -->
+  <div class="extra-boxes">
+    <div class="box">
+      <h2>TODO</h2>
+      <textarea id="todoText" class="box-text" placeholder="Aufgaben, Notizen, Ziele ..."></textarea>
+    </div>
+    <div class="box">
+  <h2>WISHLIST</h2>
+
+  <!-- Budget Zeile -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+    <label>Transferbudget (in Mio.):</label>
+    <input type="number" id="wishlistBudget" value="0,0" min="0" style="width:80px;padding:4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:#112233;color:#dfefff;">
+    <label style="margin-left:17px;">Restbudget (in Mio.):</label>
+    <input type="text" id="wishlistRest" value="0" readonly style="width:80px;padding:4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:#112233;color:#dfefff;">
+  </div>
+
+  <!-- Tabelle für Wunschspieler -->
+  <table id="wishlistTable" style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:4px;">Name</th>
+<th style="text-align:left;padding:4px;">Position</th>
+<th style="text-align:left;padding:4px;">Wert</th>
+<th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button id="btnAddWishlist" style="margin-top:8px;width:100%">Spieler hinzufügen</button>
+</div>
+  </div>
+
+  <!-- 3. Zeile: Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="stamm"><span style="color:var(--gold)">★</span>1. Mannschaft</button>
+    <button class="tab-btn" data-tab="zweite"><span style="color:var(--silver)">★</span>2. Mannschaft</button>
+    <button class="tab-btn" data-tab="jugend"><span style="color:var(--bronze)">★</span>Jugendmannschaft</button>
+    <button class="tab-btn" data-tab="verliehen"><span style="color:#ff7f7f">●</span> Verliehene Spieler</button>
+    <button class="tab-btn" data-tab="streichliste"><span style="color:#ef4444">×</span> Streichliste</button>
+  </div>
+
+  <!-- Spieler & Aufstellung -->
+  <aside class="panel">
+<div id="positionCount"></div>
+    <button id="btnAdd" style="margin-bottom:6px;width:100%">Spieler hinzufügen</button>
+    <div id="playerList" class="player-list"></div>
+  </aside>
+
+  <main>
+    <section class="formation-tab" id="stamm">
+  <h2>1. Mannschaft</h2>
+  <p class="info-text">Spieler ab 31 – potenziell abzugeben, Ausnahmen bei guter Form/Leistung</p>
+  <div class="pitch" data-formation="stamm"></div>
+<div class="bank" data-bank="stamm">
+  <h3>Bank</h3>
+  <div class="bank-grid"></div>
+  <div class="bank-grid"></div>
+</div>
+</section>
+
+<section class="formation-tab" id="zweite" style="display:none;">
+  <h2>2. Mannschaft</h2>
+  <p class="info-text">Ü20-Spieler, die den Sprung in die erste Mannschaft nicht geschafft haben.</p>
+  <div class="pitch" data-formation="zweite"></div>
+<div class="bank" data-bank="zweite">
+  <h3>Bank</h3>
+  <div class="bank-grid"></div>
+  <div class="bank-grid"></div>
+</div>
+</section>
+
+<section class="formation-tab" id="jugend" style="display:none;">
+  <h2> Jugendmannschaft</h2>
+  <p class="info-text">U19-Spieler – potenziell für die 1. Mannschaft vorgesehen oder zur Weiterentwicklung verleihen/verkaufen</p>
+  <div class="pitch" data-formation="jugend"></div>
+<div class="bank" data-bank="jugend">
+  <h3>Bank</h3>
+  <div class="bank-grid"></div>
+  <div class="bank-grid"></div>
+</div>
+</section>
+
+<section class="formation-tab" id="verliehen" style="display:none;">
+  <h2>Verliehene Spieler</h2>
+  <p class="info-text">Spieler, die an andere Vereine verliehen wurden, um Spielpraxis zu sammeln.</p>
+  <div id="verliehenList" class="player-list"></div>
+</section>
+
+<section class="formation-tab" id="streichliste" style="display:none;">
+  <h2>Streichliste</h2>
+  <p class="info-text">Spieler ohne Zukunft in diesem Verein.</p>
+  <div id="streichlisteList" class="player-list"></div>
+</section>
+  </main>
+</div>
+
+<template id="playerTemplate">
+  <div class="player" draggable="true">
+    <div class="player-top">
+      <select class="status-select">
+        <option value="Normal" style="color:transparent;"> </option>
+        <option value="ausgeliehen" style="color:#90ee90;">Lei</option>
+        <option value="verliehen" style="color:#ff7f7f;">Lei</option>
+        <option value="auf Transferliste" style="color:#fff176;">TL</option>
+        <option value="Streichliste" style="color:#ef4444;">Str</option>
+        <option value="offenes Transferangebot" style="color:#10b981;">Trn</option>
+      </select>
+
+      <div class="name" contenteditable="true"></div>
+
+      <input class="comment" type="text" placeholder="Notiz" maxlength="25">
+
+      <select class="pos-select">
+        <option value="TW">TW</option>
+        <option value="LV">LV</option>
+        <option value="LIV">LIV</option>
+        <option value="ZIV">ZIV</option>
+        <option value="RIV">RIV</option>
+        <option value="RV">RV</option>
+        <option value="DM">DM</option>
+        <option value="ZM">ZM</option>
+        <option value="OM">OM</option>
+        <option value="LM">LM</option>
+        <option value="LA">LA</option>
+        <option value="RM">RM</option>
+        <option value="RA">RA</option>
+        <option value="ST">ST</option>
+      </select>
+
+      <select class="team-select">
+        <option value="stamm" style="color:var(--gold)">★</option>
+        <option value="zweite" style="color:var(--silver)">★</option>
+        <option value="jugend" style="color:var(--bronze)">★</option>
+      </select>
+
+      <button class="btn-delete" style="background: transparent; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 16px;">×</button>
+    </div>
+  </div>
+</template>
+
+<script>
+function updateTabCounts() {
+  const tabCounts = {
+    stamm: players.filter(p => p.team === 'stamm').length,
+    zweite: players.filter(p => p.team === 'zweite').length,
+    jugend: players.filter(p => p.team === 'jugend').length,
+    verliehen: players.filter(p => p.team === 'verliehen').length,
+    streichliste: players.filter(p => p.team === 'streichliste').length
+  };
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    // Wir nehmen das erste <span> (Symbol) unverändert
+    const symbolSpan = btn.querySelector('span');
+    // Den Text nach dem Symbol
+    const textNode = Array.from(btn.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+    
+    if (textNode) {
+      textNode.textContent = ` ${textNode.textContent.replace(/\s*\(\d+\)$/, '').trim()} (${tabCounts[btn.dataset.tab]})`;
+    } else {
+      // Falls kein Textknoten existiert, neuen erstellen
+      btn.appendChild(document.createTextNode(` (${tabCounts[btn.dataset.tab]})`));
+    }
+  });
+}
+
+// --- Hilfsfunktion: Debounce ---
+function debounce(func, delay) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+
+window.addEventListener('beforeunload', function(event) {
+    // Standard verhindern
+    event.preventDefault();
+    // Dies ist zwingend, damit moderne Browser die Warnung anzeigen
+    event.returnValue = '';
+});
+
+let players=[], assignments={
+  stamm:{}, zweite:{}, jugend:{},
+  bank_stamm:{}, bank_zweite:{}, bank_jugend:{},
+  verliehen:{}, streichliste:{}
+};
+let notes = { todo: '', wishlist: '' };
+let currentTeam='stamm';
+const statusMap={
+  'Normal':{symbol:' ',color:'transparent'},
+  'ausgeliehen':{symbol:'Lei',color:'#90ee90'},
+  'verliehen':{symbol:'Lei',color:'#ff7f7f'},
+  'auf Transferliste':{symbol:'TL',color:'#fff176'},
+  'Streichliste':{symbol:'Str',color:'#ef4444'},
+  'offenes Transferangebot':{symbol:'Trn',color:'#10b981'}
+};
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.formation-tab').forEach(tab=>tab.style.display='none');
+    document.getElementById(btn.dataset.tab).style.display='block';
+    currentTeam=btn.dataset.tab;
+    renderPlayers();
+  });
+});
+
+document.getElementById('btnAdd').addEventListener('click',()=>{
+  players.push({id:'p_'+Math.random().toString(36).slice(2,9),name:'Neuer Spieler',pos:'TW',status:'Normal',comment:'',team:currentTeam});
+  renderPlayers();
+});
+
+function buildPitch(el){
+  el.innerHTML = '';
+  const colsPerRow = [5,5,5,5,5,1]; // Anzahl Zellen pro Reihe
+
+  for(let r = 0; r < 6; r++){
+    const row = document.createElement('div');
+    row.className = 'row r-' + (r+1);
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = `repeat(${colsPerRow[r]}, 1fr)`;
+    row.style.gap = '8px';
+
+    for(let c = 0; c < colsPerRow[r]; c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r+1;
+      cell.dataset.col = c;
+
+      // Drag & Drop Setup
+      setupDroppableCell(cell, el.dataset.formation);
+
+      row.appendChild(cell);
+    }
+    el.appendChild(row);
+  }
+}
+document.querySelectorAll('.pitch').forEach(p=>buildPitch(p));
+
+function buildBank(el){
+  const f = el.dataset.bank;
+  const grids = el.querySelectorAll('.bank-grid');
+
+  grids.forEach((grid, gi) => {
+    grid.innerHTML = '';
+    for(let i=0; i<5; i++){
+      const cell = document.createElement('div');
+      cell.className = 'bank-cell';
+      cell.dataset.index = gi*5 + i;
+
+      // Drag & Drop Setup
+      setupDroppableCell(cell, f);
+
+      grid.appendChild(cell);
+    }
+  });
+}
+document.querySelectorAll('.bank').forEach(b=>buildBank(b));
+
+function renderPlayers() {
+  const list = document.getElementById('playerList');
+  list.innerHTML = '';
+  const teamColor = {stamm:'var(--gold)', zweite:'var(--silver)', jugend:'var(--bronze)'};
+
+  let teamPlayers = players.filter(p => p.team === currentTeam);
+  const posOrder = ['TW','LV','LIV','ZIV','RIV','RV','DM','ZM','OM','LM','LA','RM','RA','ST'];
+
+  function isOnPitch(p) {
+    return Object.values(assignments[currentTeam] || {}).includes(p.id);
+  }
+  function isOnBench(p) {
+    return Object.values(assignments['bank_' + currentTeam] || {}).includes(p.id);
+  }
+
+  // Sortierung: "Neuer Spieler" > Pitch > Bank > Position
+  teamPlayers.sort((a, b) => {
+    if (a.name === 'Neuer Spieler') return -1;
+    if (b.name === 'Neuer Spieler') return 1;
+
+    const getCategory = p => isOnPitch(p) ? 0 : isOnBench(p) ? 1 : 2;
+    const catA = getCategory(a);
+    const catB = getCategory(b);
+    if (catA !== catB) return catA - catB;
+
+    return posOrder.indexOf(a.pos) - posOrder.indexOf(b.pos);
+  });
+
+  teamPlayers.forEach(p => {
+    const tpl = document.getElementById('playerTemplate').content.cloneNode(true);
+    const div = tpl.querySelector('.player'); 
+    div.dataset.id = p.id;
+
+    const nameDiv = tpl.querySelector('.name'); 
+    nameDiv.textContent = p.name;
+
+    // --- Name bearbeiten ---
+    nameDiv.addEventListener('input', e => {
+      if(e.target.textContent.length > 15) e.target.textContent = e.target.textContent.slice(0,15);
+      p.name = e.target.textContent; // Name nur aktualisieren, noch nicht sortieren
+    });
+
+    // Sortierung erst beim Verlassen des Feldes oder Enter
+    const sortAndRender = () => {
+      renderPlayers();
+      renderPitches();
+      updatePositionCount();
+      updatePlayerListColors();
+    };
+
+    nameDiv.addEventListener('blur', sortAndRender);
+
+    nameDiv.addEventListener('keydown', e => {
+      if(e.key === 'Enter') {
+        e.preventDefault(); // Zeilenumbruch verhindern
+        nameDiv.blur();     // löst Sortierung aus
+      }
+    });
+
+    const selectAllName = () => { 
+      const range = document.createRange(); 
+      const sel = window.getSelection(); 
+      range.selectNodeContents(nameDiv); 
+      sel.removeAllRanges(); 
+      sel.addRange(range); 
+    };
+    nameDiv.addEventListener('click', selectAllName);
+    nameDiv.addEventListener('focus', selectAllName);
+
+    const commentInput = tpl.querySelector('.comment');
+    commentInput.value = p.comment;
+    commentInput.addEventListener('input', e => { p.comment = e.target.value.slice(0,25); });
+
+    const statusSelect = tpl.querySelector('.status-select'); 
+    statusSelect.value = p.status;
+    statusSelect.style.color = statusMap[p.status].color || '#dfefff';
+    statusSelect.addEventListener('change', e => {
+  p.status = e.target.value;
+
+  // Automatische Teamzuweisung je nach Status
+  if(p.status === 'verliehen') {
+    p.team = 'verliehen';
+  } else if(p.status === 'Streichliste') {
+    p.team = 'streichliste';
+  } else if(!['stamm','zweite','jugend'].includes(p.team)) {
+    p.team = currentTeam; // zurück zu normalem Team, falls vorher auf spezielles Tab
+  }
+
+  renderPlayers();
+});
+
+    const posSelect = tpl.querySelector('.pos-select'); 
+    posSelect.value = p.pos;
+    posSelect.addEventListener('change', e => {
+      p.pos = e.target.value;
+      renderPlayers();       
+    });
+
+    const teamSelect = tpl.querySelector('.team-select');
+    teamSelect.value = p.team;
+    teamSelect.style.color = teamColor[p.team];
+    teamSelect.addEventListener('change', e => {
+      const oldTeam = p.team;
+      p.team = e.target.value;
+      for(const key in assignments[oldTeam]){
+        if(assignments[oldTeam][key] === p.id) delete assignments[oldTeam][key];
+      }
+      renderPlayers();       
+      renderPitches();
+      updateStars();
+      updatePlayerListColors();
+    });
+
+    tpl.querySelector('.btn-delete').addEventListener('click', () => {
+      players = players.filter(pl => pl.id !== p.id);
+      renderPlayers();       
+    });
+
+    div.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', p.id); div.classList.add('dragging'); });
+    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+
+    list.appendChild(tpl);
+  });
+
+  renderPitches();
+  updateStars();
+  updatePositionCount();
+  updatePlayerListColors();
+  updateTabCounts();
+}
+
+// --- Neue Funktion: Positionen zählen ---
+function updatePositionCount() {
+  const posOrder = ['TW','LV','LIV','ZIV','RIV','RV','DM','ZM','OM','LM','LA','RM','RA','ST'];
+  const counts = {};
+  posOrder.forEach(pos => counts[pos] = 0);
+
+  players.filter(p => p.team === currentTeam).forEach(p => {
+    if(counts.hasOwnProperty(p.pos)) counts[p.pos]++;
+  });
+
+  const line = posOrder.map(pos => `${pos}: ${counts[pos]}`).join(' | ');
+  document.getElementById('positionCount').textContent = line;
+}
+
+// Wishlist-Daten
+let wishlistPlayers = [];
+
+// Funktion, um Rest-Budget zu aktualisieren
+function updateWishlistRest() {
+  const budget = parseFloat(document.getElementById('wishlistBudget').value) || 0;
+  const sum = wishlistPlayers.reduce((acc, p) => acc + (parseFloat(p.value) || 0), 0);
+  document.getElementById('wishlistRest').value = (budget - sum).toFixed(1).replace('.', ',');
+}
+
+// Spieler in die Tabelle rendern
+function renderWishlist() {
+  const tbody = document.querySelector('#wishlistTable tbody');
+  tbody.innerHTML = '';
+
+  wishlistPlayers.forEach((p, i) => {
+    const tr = document.createElement('tr');
+
+    // Name (max. 25 Zeichen)
+    const tdName = document.createElement('td');
+    const inputName = document.createElement('input');
+inputName.type = 'text';
+inputName.value = p.name;
+inputName.placeholder = 'Name';  // <-- hier hinzufügen
+inputName.maxLength = 25;        
+inputName.style.background = '#112233';
+inputName.style.color = '#dfefff';
+inputName.style.border = '1px solid rgba(255,255,255,0.2)';
+inputName.style.borderRadius = '4px';
+inputName.addEventListener('input', e => {
+  if(e.target.value.length > 25){
+    e.target.value = e.target.value.slice(0,25);
+  }
+  p.name = e.target.value;
+});
+tdName.appendChild(inputName);
+
+    // Position Dropdown
+    const tdPos = document.createElement('td');
+    const selectPos = document.createElement('select');
+    ['TW','LV','LIV','ZIV','RIV','RV','DM','ZM','OM','LM','LA','RM','RA','ST'].forEach(pos=>{
+      const opt = document.createElement('option');
+      opt.value = pos; opt.textContent = pos;
+      if(pos===p.pos) opt.selected = true;
+      selectPos.appendChild(opt);
+    });
+    selectPos.style.background='#112233'; selectPos.style.color='#dfefff'; selectPos.style.border='1px solid rgba(255,255,255,0.2)';
+    selectPos.style.borderRadius='4px';
+    selectPos.addEventListener('change', e => { p.pos = e.target.value; });
+    tdPos.appendChild(selectPos);
+
+    // Wert Feld
+    const tdValue = document.createElement('td');
+    const inputValue = document.createElement('input');
+    inputValue.type = 'number';
+    inputValue.value = p.value;
+    inputValue.min = 0;
+    inputValue.step = 1;
+    inputValue.style.background='#112233'; inputValue.style.color='#dfefff';
+    inputValue.style.border='1px solid rgba(255,255,255,0.2)'; inputValue.style.borderRadius='4px';
+    inputValue.addEventListener('input', e=>{
+      p.value = parseFloat(e.target.value)||0;
+      updateWishlistRest();
+    });
+    tdValue.appendChild(inputValue);
+
+    // Löschen Button
+    const tdDel = document.createElement('td');
+    const btnDel = document.createElement('button');
+    btnDel.textContent = '×';
+    btnDel.style.background='transparent'; 
+    btnDel.style.border='none'; 
+    btnDel.style.color='#ef4444'; 
+    btnDel.style.cursor='pointer';
+    btnDel.addEventListener('click', ()=>{
+      wishlistPlayers.splice(i,1);
+      renderWishlist();
+      updateWishlistRest();
+    });
+    tdDel.appendChild(btnDel);
+
+    // Zeile zusammenbauen
+    tr.appendChild(tdName);
+    tr.appendChild(tdPos);
+    tr.appendChild(tdValue);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+  });
+
+  updateWishlistRest();
+}
+
+// Spieler hinzufügen
+document.getElementById('btnAddWishlist').addEventListener('click', ()=>{
+  wishlistPlayers.push({name:'', pos:'TW', value:0});
+  renderWishlist();
+});
+
+// Budget ändern
+document.getElementById('wishlistBudget').addEventListener('input', updateWishlistRest);
+
+// Initial render
+renderWishlist();
+
+function setupDroppableCell(cell, formationKey){
+  cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('dragover'); });
+  cell.addEventListener('dragleave', () => cell.classList.remove('dragover'));
+
+  cell.addEventListener('drop', e => {
+    e.preventDefault();
+    cell.classList.remove('dragover');
+
+    const id = e.dataTransfer.getData('text/plain');
+    const isBank = cell.classList.contains('bank-cell');
+    const key = isBank ? 'bank_' + formationKey : formationKey;
+    const cellId = isBank ? cell.dataset.index : cell.dataset.row+'-'+cell.dataset.col;
+
+    let oldCellId;
+    for(const k in assignments[key]){
+      if(assignments[key][k] === id) oldCellId = k;
+    }
+
+    const otherKey = isBank ? formationKey : 'bank_' + formationKey;
+    for(const k in assignments[otherKey]){
+      if(assignments[otherKey][k] === id) delete assignments[otherKey][k];
+    }
+
+    const targetId = assignments[key][cellId];
+    if(targetId && targetId !== id){
+      assignments[key][cellId] = id;
+      if(oldCellId !== undefined) assignments[key][oldCellId] = targetId;
+    } else {
+      if(oldCellId !== undefined) delete assignments[key][oldCellId];
+      assignments[key][cellId] = id;
+    }
+
+    renderPitches();
+    renderPlayers();       // 🔹 sofort sortieren nach Drag & Drop
+    updateStars();
+    updatePlayerListColors();
+  });
+}
+
+function renderPitches(){
+  // --- Spielfelder (Pitch) rendern ---
+  document.querySelectorAll('.pitch').forEach(pitch=>{
+    const f = pitch.dataset.formation;
+    pitch.querySelectorAll('.cell').forEach(cell=>{
+      cell.innerHTML = '';
+      const id = assignments[f][cell.dataset.row+'-'+cell.dataset.col];
+      if(id){
+        const pl = players.find(x=>x.id===id);
+        if(pl){
+          const slot = document.createElement('div'); 
+          slot.className = 'slot';
+
+          // Trikot auswählen (Torwartreihe blau)
+          const isTorwartRow = cell.closest('.row') && cell.closest('.row').classList.contains('r-6');
+          const kitSrc = isTorwartRow ? 'graphics/kit_blue.png' : 'graphics/kit_white.png';
+
+          slot.innerHTML = `
+            <img src="${kitSrc}" alt="Kit">
+            <div class="name">${pl.name}</div>
+            <div class="pos">${pl.pos}</div>
+          `;
+
+          // Drag & Drop
+          slot.setAttribute('draggable','true');
+          slot.dataset.id = pl.id;
+          slot.addEventListener('dragstart', e=>{
+            e.dataTransfer.setData('text/plain', pl.id);
+            slot.classList.add('dragging');
+          });
+          slot.addEventListener('dragend', e=>{
+            slot.classList.remove('dragging');
+          });
+
+          // Entfernen-Button
+          const rm = document.createElement('div'); 
+          rm.className = 'remove-cell'; 
+          rm.textContent = '×';
+          rm.addEventListener('click',()=>{
+            delete assignments[f][cell.dataset.row+'-'+cell.dataset.col];
+            renderPitches();
+            updateStars();
+            updatePlayerListColors();
+          });
+
+          cell.appendChild(slot);
+          cell.appendChild(rm);
+        }
+      }
+    });
+  });
+
+  // --- Banken rendern ---
+document.querySelectorAll('.bank').forEach(bank=>{
+  const f = bank.dataset.bank;
+  const cells = bank.querySelectorAll('.bank-cell');
+  cells.forEach(cell=>{
+    cell.innerHTML = '';
+    const id = assignments['bank_'+f][cell.dataset.index];
+    if(id){
+      const pl = players.find(x=>x.id===id);
+      if(pl){
+        const slot = document.createElement('div'); 
+        slot.className = 'slot';
+
+        // Trikotfarbe für Bank-Spieler: TW = blau, alle anderen = weiß
+        const kitSrc = pl.pos === 'TW' ? 'graphics/kit_blue.png' : 'graphics/kit_white.png';
+
+        slot.innerHTML = `
+          <img src="${kitSrc}" alt="Kit">
+          <div class="name">${pl.name}</div>
+          <div class="pos">${pl.pos}</div>
+        `;
+
+        // Drag & Drop
+        slot.setAttribute('draggable','true');
+        slot.dataset.id = pl.id;
+        slot.addEventListener('dragstart', e=>{
+          e.dataTransfer.setData('text/plain', pl.id);
+          slot.classList.add('dragging');
+        });
+        slot.addEventListener('dragend', e=>{
+          slot.classList.remove('dragging');
+        });
+
+        // Entfernen-Button
+        const rm = document.createElement('div'); 
+        rm.className = 'remove-cell'; 
+        rm.textContent = '×';
+        rm.addEventListener('click',()=>{
+          delete assignments['bank_'+f][cell.dataset.index];
+          renderPitches();
+          updateStars();
+          updatePlayerListColors();
+        });
+
+        cell.appendChild(slot);
+        cell.appendChild(rm);
+      }
+    }
+  });
+});
+}
+
+function updatePlayerListColors() {
+  document.querySelectorAll('.player').forEach(div => {
+    const id = div.dataset.id;
+    let isOnPitch = false;
+    let isOnBench = false;
+
+    for (const key of ['stamm', 'zweite', 'jugend']) {
+      if (Object.values(assignments[key] || {}).includes(id)) { isOnPitch = true; break; }
+    }
+
+    for (const key of ['bank_stamm', 'bank_zweite', 'bank_jugend']) {
+      if (Object.values(assignments[key] || {}).includes(id)) { isOnBench = true; break; }
+    }
+
+    if (isOnPitch) div.style.background = 'rgba(0, 128, 0, 0.15)';
+    else if (isOnBench) div.style.background = 'rgba(255, 255, 255, 0.08)';
+    else div.style.background = 'rgba(255, 255, 255, 0.02)';
+  });
+}
+
+function updateStars(){
+  document.querySelectorAll('.player').forEach(div=>{
+    const id=div.dataset.id;
+    // optional: kann noch Sternanzeige je Team ergänzen
+  });
+}
+
+document.getElementById('btnExport').addEventListener('click',()=>{
+  // Notizen aktualisieren
+  notes.todo = document.getElementById('todoText').value;
+  notes.wishlist = document.getElementById('wishlistText') ? document.getElementById('wishlistText').value : '';
+
+  // JSON-Daten zusammenstellen
+  const data = JSON.stringify({
+    players, 
+    assignments, 
+    notes,
+    wishlistPlayers, 
+    wishlistBudget: parseFloat(document.getElementById('wishlistBudget').value) || 0
+  });
+
+  // Datei erstellen und herunterladen
+  const blob = new Blob([data], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'kader.json';
+  a.click();
+});
+
+document.getElementById('btnLoad').addEventListener('click',()=>document.getElementById('importFile').click());
+
+document.getElementById('importFile').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    const obj = JSON.parse(reader.result);
+
+    // Spieler, Aufstellungen und Notizen laden
+    players = obj.players || [];
+    assignments = obj.assignments || { stamm:{}, zweite:{}, jugend:{}, bank_stamm:{}, bank_zweite:{}, bank_jugend:{} };
+    notes = obj.notes || { todo:'', wishlist:'' };
+
+    // Wishlist-Daten laden
+    wishlistPlayers = obj.wishlistPlayers || [];
+    document.getElementById('wishlistBudget').value = obj.wishlistBudget || 0;
+
+    // Textfelder füllen
+    document.getElementById('todoText').value = notes.todo;
+
+    // Rendern
+    renderPlayers();
+    renderWishlist();
+  };
+  reader.readAsText(file);
+});
+
+renderPlayers();
+document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>renderPlayers()));
+// Textfelder beim Start initialisieren
+document.getElementById('todoText').value = notes.todo;
+document.getElementById('wishlistText').value = notes.wishlist;
+</script>
+</body>
+</html>
