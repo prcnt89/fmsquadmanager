@@ -117,7 +117,8 @@ header {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-top: 0px;
+  margin-bottom: 12px;
 }
 
 /* Tabs über gesamte Breite */
@@ -322,15 +323,6 @@ header {
     </div>
   </header>
 
-  <!-- 2. Zeile: Statuslegende -->
-  <div class="legend">
-    <div class="item"><span style="color:#90ee90">Lei</span> ausgeliehen</div>
-    <div class="item"><span style="color:#ff7f7f">Lei</span> verliehen</div>
-    <div class="item"><span style="color:#fff176">TL</span> auf Transferliste</div>
-    <div class="item"><span style="color:#ef4444">Str</span> Streichliste</div>
-    <div class="item"><span style="color:#10b981">Trn</span> offenes Transferangebot</div>
-  </div>
-
   <!-- TODO & WISHLIST -->
   <div class="extra-boxes">
     <div class="box">
@@ -365,13 +357,22 @@ header {
 </div>
   </div>
 
-  <!-- 3. Zeile: Tabs -->
+  <!-- Tabs -->
   <div class="tabs">
     <button class="tab-btn active" data-tab="stamm"><span style="color:var(--gold)">★</span>1. Mannschaft</button>
     <button class="tab-btn" data-tab="zweite"><span style="color:var(--silver)">★</span>2. Mannschaft</button>
     <button class="tab-btn" data-tab="jugend"><span style="color:var(--bronze)">★</span>Jugendmannschaft</button>
     <button class="tab-btn" data-tab="verliehen"><span style="color:#ff7f7f">●</span> Verliehene Spieler</button>
     <button class="tab-btn" data-tab="streichliste"><span style="color:#ef4444">×</span> Streichliste</button>
+  </div>
+
+  <!-- Statuslegende -->
+  <div class="legend">
+    <div class="item"><span style="color:#90ee90">Lei</span> ausgeliehen</div>
+    <div class="item"><span style="color:#ff7f7f">Lei</span> verliehen</div>
+    <div class="item"><span style="color:#fff176">TL</span> auf Transferliste</div>
+    <div class="item"><span style="color:#ef4444">Str</span> Streichliste</div>
+    <div class="item"><span style="color:#10b981">Trn</span> offenes Transferangebot</div>
   </div>
 
   <!-- Spieler & Aufstellung -->
@@ -850,9 +851,15 @@ document.getElementById('wishlistBudget').addEventListener('input', updateWishli
 // Initial render
 renderWishlist();
 
-function setupDroppableCell(cell, formationKey){
-  cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('dragover'); });
-  cell.addEventListener('dragleave', () => cell.classList.remove('dragover'));
+function setupDroppableCell(cell, formationKey) {
+  cell.addEventListener('dragover', e => {
+    e.preventDefault();
+    cell.classList.add('dragover');
+  });
+
+  cell.addEventListener('dragleave', e => {
+    cell.classList.remove('dragover');
+  });
 
   cell.addEventListener('drop', e => {
     e.preventDefault();
@@ -861,29 +868,46 @@ function setupDroppableCell(cell, formationKey){
     const id = e.dataTransfer.getData('text/plain');
     const isBank = cell.classList.contains('bank-cell');
     const key = isBank ? 'bank_' + formationKey : formationKey;
-    const cellId = isBank ? cell.dataset.index : cell.dataset.row+'-'+cell.dataset.col;
+    const cellId = isBank ? cell.dataset.index : cell.dataset.row + '-' + cell.dataset.col;
 
+    // --- 🟡 NEU: Limit-Prüfung (max. 11 Spieler) ---
+    if (!isBank) { // Nur für Spielfeld (nicht Bank)
+      const currentCount = Object.keys(assignments[key]).length;
+      const alreadyOnPitch = Object.values(assignments[key]).includes(id);
+
+      if (currentCount >= 11 && !alreadyOnPitch) {
+        alert("Es können nicht mehr als 11 Spieler aufgestellt werden!");
+        return; // Drop abbrechen
+      }
+    }
+    // --- Ende neue Prüfung ---
+
+    // Alten Zellenplatz des Spielers finden (falls vorhanden)
     let oldCellId;
-    for(const k in assignments[key]){
-      if(assignments[key][k] === id) oldCellId = k;
+    for (const k in assignments[key]) {
+      if (assignments[key][k] === id) oldCellId = k;
     }
 
+    // Spieler ggf. aus der anderen Ansicht (Bank/Feld) entfernen
     const otherKey = isBank ? formationKey : 'bank_' + formationKey;
-    for(const k in assignments[otherKey]){
-      if(assignments[otherKey][k] === id) delete assignments[otherKey][k];
+    for (const k in assignments[otherKey]) {
+      if (assignments[otherKey][k] === id) delete assignments[otherKey][k];
     }
 
+    // Wenn Zielzelle bereits belegt ist → Spieler tauschen
     const targetId = assignments[key][cellId];
-    if(targetId && targetId !== id){
+    if (targetId && targetId !== id) {
       assignments[key][cellId] = id;
-      if(oldCellId !== undefined) assignments[key][oldCellId] = targetId;
+      if (oldCellId !== undefined) assignments[key][oldCellId] = targetId;
     } else {
-      if(oldCellId !== undefined) delete assignments[key][oldCellId];
+      // Ansonsten einfach verschieben
+      if (oldCellId !== undefined) delete assignments[key][oldCellId];
       assignments[key][cellId] = id;
     }
 
+    // Neu rendern & aktualisieren
     renderPitches();
-    renderPlayers();       // 🔹 sofort sortieren nach Drag & Drop
+    renderPlayers();       // 🔹 Spielerlisten aktualisieren
     updateStars();
     updatePlayerListColors();
   });
